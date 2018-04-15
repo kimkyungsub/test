@@ -12,6 +12,7 @@ var products = {
   1:{title:'The history of web1'},
   2:{title:'the next web'}
 };
+
 app.get('/products', (req, res) => {
   var output = `<h1>Products</h1><ul>`;
   for (var name in products) {
