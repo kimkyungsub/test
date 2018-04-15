@@ -1,0 +1,47 @@
+doctype html
+html
+  head
+    meta(charset='utf-8')
+  body
+    h1 Server Side Javascript
+    ul
+      each topic in topics
+        li
+          a(href='/topic/view/'+topic.uid)= topic.title
+    article
+      if mode=='view'
+        h2= topic.title
+        = topic.description
+        = ' by '+topic.author
+        div
+          a(href='/topic/edit/'+topic.uid) edit
+          |,
+          a(href='/topic/delete/'+topic.uid) delete
+      else if mode=='add'
+        form(action='/topic/add' method='post')
+          p
+            input(type='text' name='title' placeholder='title')
+          p
+            textarea(name="description")
+          p
+            input(type='text' name='author' placeholder='author')
+          p
+            input(type='submit')
+      else if mode=='edit'
+        form(action='/topic/edit/'+topic.uid method='post')
+          p
+            input(type='text' name='title' placeholder='title' value=topic.title)
+          p
+            textarea(name='description')
+              =topic.description
+          p
+            input(type='text' name='author' placeholder='author' value=topic.author)
+          p
+            input(type='submit')
+      else
+        h2 Welcome
+        |Server side javascript tutorial.
+    div
+      a(href='/topic/add') add
+      |,
+      a(href='/topic') list
