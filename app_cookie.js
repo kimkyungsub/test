@@ -1,9 +1,7 @@
 var express = require('express');
 var cookieParser = require('cookie-parser');
 var app = express();
-
 app.use(cookieParser('dkssudgktpdy'));
-
 app.get('/count', (req, res) => {
   var count = req.signedCookies.count ? parseInt(req.signedCookies.count) + 1 : 1;
   res.cookie('count', count, {signed: true});
