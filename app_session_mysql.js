@@ -1,7 +1,10 @@
 var express = require('express');
 var bodyParser = require('body-parser');
 var session = require('express-session');
+var sha256 = require('sha256');
 var MySQLStore = require('express-mysql-session')(session);
+var passport = require('passport')
+var LocalStrategy = require('passport-local').Strategy;
 
 var app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -21,17 +24,17 @@ app.use(session({
   store: new MySQLStore(options)
 }));
 
+var salt = '@#$%^dsfjdlkjd';
 var users = [
   {
     username: 'kskim1',
-    password: '1111',
+    password: 'daef95c2270bc3bd1de8b8a5ee6d7dc82073e246b4ada0bcbfe3f896f567923c',
     displayName: 'Kyungsub1'
-  },{
-    username: 'kskim2',
-    password: '2222',
-    displayName: 'Kyungsub2'
   }
 ];
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.get('/auth/login', (req, res) => {
   var output = `
@@ -51,31 +54,58 @@ app.get('/auth/login', (req, res) => {
   res.send(output);
 });
 
-app.post('/auth/login', (req, res) => {
-  var uname = req.body.username;
-  var pwd = req.body.password;
-  var user;
-  var pass = false;
-  for (var i in users) {
-    user = users[i];
-    console.log(user);
-    if (uname === user.username && pwd === user.password) {
-      req.session.displayName = user.displayName;
-      req.session.save(() => {
-        res.redirect('/welcome');
-      });
-      pass = true;
-      break;
-    }
-  }
-  if (!pass) res.send('Who are you? <a href="/auth/login">login</a>');
+passport.serializeUser(function(user, done) {
+  console.log('serializeUser2', user);
+  done(null, user.username);
 });
 
+passport.deserializeUser(function(id, done) {
+  console.log('deserializeUser2', id);
+  for(var i in users) {
+    var user = users[i];
+    if (user.username === id) {
+      done(null, user);
+    }
+  }
+});
+
+passport.use(new LocalStrategy(
+  function(username, password, done) {
+    var uname = username;
+    var pwd = password;
+    var user;
+    var pass = false;
+    for (var i in users) {
+      user = users[i];
+      console.log(user);
+      if (uname === user.username && sha256(pwd+salt) === user.password) {
+        console.log('LocalStrategy2', user);
+        done(null, user);
+        pass = true;
+        break;
+      }
+    }
+    if (!pass) done(null, false);
+  }
+));
+
+app.post(
+  '/auth/login',
+  passport.authenticate(
+    'local',
+    {
+      successRedirect: '/welcome',
+      failureRedirect: '/auth/login',
+      failureFlash: false
+   }
+ )
+);
+
 app.get('/auth/logout', (req, res) => {
-    delete req.session.displayName;
-    req.session.save(() => {
-      res.redirect('/welcome');
-    });
+  req.logout();
+  req.session.save(function() {
+    res.redirect('/welcome');
+  });
 });
 
 app.get('/auth/register', (req, res) => {
@@ -119,18 +149,22 @@ app.post('/auth/register', (req, res) => {
   } else {
     user = {
       username: uname,
-      password: pwd,
+      password: sha256(pwd+salt),
       displayName: dname
     };
     users.push(user);
-    res.redirect('/auth/login');
+    req.login(user, function(err) {
+      req.session.save(function() {
+        res.redirect('/welcome');
+      });
+    });
   }
 });
 
 app.get('/welcome', (req,res) => {
-  if (req.session.displayName) {
+  if (req.user && req.user.displayName) {
     res.send(`
-      <h1>Hello, ${req.session.displayName}</h1>
+      <h1>Hello, ${req.user.displayName}</h1>
       <a href="/auth/logout">Logout</a>
     `);
   } else {
